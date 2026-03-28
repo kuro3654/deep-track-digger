@@ -366,25 +366,8 @@ async function digTracks() {
   showError(null);
 
   try {
-    setStatus('全アルバムを取得中...');
-    let allAlbums = [], offset = 0;
-    while (true) {
-      const albumUrl = `https://api.spotify.com/v1/artists/${selectedArtist.id}/albums?market=JP&limit=10&offset=${offset}`;
-      const d = await fetch(albumUrl, {headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-      if (d.error) throw new Error(d.error.message);
-      allAlbums = allAlbums.concat(d.items);
-      if (d.next) offset += 20; else break;
-    }
-    const seen = new Set();
-    allAlbums = allAlbums.filter(a => {
-      const k = a.name.toLowerCase().replace(/\s*[\(\[].*/, '').trim();
-      if (seen.has(k)) return false; seen.add(k); return true;
-    });
-
-    setStatus('アーティストの楽曲を取得中...');
-    // /artist/{id}/top-tracks で上位曲を取得してPopularityでソート
+    setStatus('楽曲を取得中...');
     const topData = await spotifyGet(`/artists/${selectedArtist.id}/top-tracks`, { market: 'JP' });
-    // さらに関連アーティストの曲も除外するためアーティストIDで絞る
     let allTracks = topData.tracks.map(t => ({
       id: t.id, name: t.name, duration_ms: t.duration_ms,
       album_name: t.album.name,
@@ -394,8 +377,6 @@ async function digTracks() {
       external_url: t.external_urls?.spotify,
       popularity: t.popularity
     }));
-    setStatus(`${allTracks.length}曲を取得しました`);
-
     let filtered = allTracks.filter(t => {
       const n = t.name.toLowerCase();
       if (activeFilters.has('live') && /\blive\b|ライブ/.test(n)) return false;
@@ -404,13 +385,7 @@ async function digTracks() {
       if (activeFilters.has('short') && t.duration_ms < 90000) return false;
       return true;
     });
-    const seenT = new Set();
-    filtered = filtered.filter(t => {
-      const k = t.name.toLowerCase().replace(/\s*[\(\-].*/, '').trim();
-      if (seenT.has(k)) return false; seenT.add(k); return true;
-    });
 
-    // popularityはtop-tracksに含まれている
     filtered.sort((a,b) => a.popularity - b.popularity);
     foundTracks = filtered.slice(0, 5);
     renderResults(foundTracks, filtered.length);
