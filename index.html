@@ -369,7 +369,7 @@ async function digTracks() {
     setStatus('全アルバムを取得中...');
     let allAlbums = [], offset = 0;
     while (true) {
-      const d = await spotifyGet(`/artists/${selectedArtist.id}/albums`, { include_groups: 'album,single', market: 'JP', limit: 50, offset });
+      const d = await spotifyGet(`/artists/${selectedArtist.id}/albums`, { include_groups: 'album,single', market: 'JP', limit: 20, offset });
       allAlbums = allAlbums.concat(d.items);
       if (d.next) offset += 50; else break;
     }
@@ -381,8 +381,8 @@ async function digTracks() {
 
     setStatus(`${allAlbums.length}枚のアルバムを分析中...`);
     let allTracks = [];
-    for (let i = 0; i < allAlbums.length; i += 20) {
-      const ids = allAlbums.slice(i, i+20).map(a => a.id).join(',');
+    for (let i = 0; i < allAlbums.length; i += 5) {
+      const ids = allAlbums.slice(i, i+5).map(a => a.id).join(',');
       const d = await spotifyGet('/albums', { ids, market: 'JP' });
       d.albums.forEach(album => {
         album.tracks.items.forEach(t => {
