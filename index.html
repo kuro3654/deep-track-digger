@@ -381,19 +381,20 @@ async function digTracks() {
       if (seen.has(k)) return false; seen.add(k); return true;
     });
 
-    setStatus(`${allAlbums.length}枚のアルバムを分析中...`);
-    let allTracks = [];
-    for (const album of allAlbums) {
-      try {
-        const d = await spotifyGet(`/albums/${album.id}`, { market: 'JP' });
-        if (d.tracks && d.tracks.items) {
-          d.tracks.items.forEach(t => {
-            allTracks.push({ id: t.id, name: t.name, duration_ms: t.duration_ms, album_name: album.name, album_art: album.images[1]?.url || album.images[0]?.url, album_year: album.release_date?.substring(0,4), preview_url: t.preview_url, external_url: t.external_urls?.spotify });
-          });
-        }
-      } catch(e) {}
-      setStatus(`楽曲を収集中... ${allTracks.length}曲`);
-    }
+    setStatus('アーティストの楽曲を取得中...');
+    // /artist/{id}/top-tracks で上位曲を取得してPopularityでソート
+    const topData = await spotifyGet(`/artists/${selectedArtist.id}/top-tracks`, { market: 'JP' });
+    // さらに関連アーティストの曲も除外するためアーティストIDで絞る
+    let allTracks = topData.tracks.map(t => ({
+      id: t.id, name: t.name, duration_ms: t.duration_ms,
+      album_name: t.album.name,
+      album_art: t.album.images[1]?.url || t.album.images[0]?.url,
+      album_year: t.album.release_date?.substring(0,4),
+      preview_url: t.preview_url,
+      external_url: t.external_urls?.spotify,
+      popularity: t.popularity
+    }));
+    setStatus(`${allTracks.length}曲を取得しました`);
 
     let filtered = allTracks.filter(t => {
       const n = t.name.toLowerCase();
@@ -409,14 +410,7 @@ async function digTracks() {
       if (seenT.has(k)) return false; seenT.add(k); return true;
     });
 
-    setStatus('Popularityを取得中...');
-    const pops = {};
-    for (let i = 0; i < filtered.length; i += 50) {
-      const ids = filtered.slice(i, i+50).map(t => t.id).join(',');
-      const d = await spotifyGet('/tracks', { ids, market: 'JP' });
-      d.tracks.forEach(t => { if (t) pops[t.id] = t.popularity; });
-    }
-    filtered.forEach(t => { t.popularity = pops[t.id] ?? 0; });
+    // popularityはtop-tracksに含まれている
     filtered.sort((a,b) => a.popularity - b.popularity);
     foundTracks = filtered.slice(0, 5);
     renderResults(foundTracks, filtered.length);
