@@ -383,14 +383,15 @@ async function digTracks() {
 
     setStatus(`${allAlbums.length}枚のアルバムを分析中...`);
     let allTracks = [];
-    for (let i = 0; i < allAlbums.length; i += 5) {
-      const ids = allAlbums.slice(i, i+5).map(a => a.id).join(',');
-      const d = await spotifyGet('/albums', { ids, market: 'JP' });
-      d.albums.forEach(album => {
-        album.tracks.items.forEach(t => {
-          allTracks.push({ id: t.id, name: t.name, duration_ms: t.duration_ms, album_name: album.name, album_art: album.images[1]?.url || album.images[0]?.url, album_year: album.release_date?.substring(0,4), preview_url: t.preview_url, external_url: t.external_urls?.spotify });
-        });
-      });
+    for (const album of allAlbums) {
+      try {
+        const d = await spotifyGet(`/albums/${album.id}`, { market: 'JP' });
+        if (d.tracks && d.tracks.items) {
+          d.tracks.items.forEach(t => {
+            allTracks.push({ id: t.id, name: t.name, duration_ms: t.duration_ms, album_name: album.name, album_art: album.images[1]?.url || album.images[0]?.url, album_year: album.release_date?.substring(0,4), preview_url: t.preview_url, external_url: t.external_urls?.spotify });
+          });
+        }
+      } catch(e) {}
       setStatus(`楽曲を収集中... ${allTracks.length}曲`);
     }
 
