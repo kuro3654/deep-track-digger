@@ -369,11 +369,11 @@ async function digTracks() {
     setStatus('全アルバムを取得中...');
     let allAlbums = [], offset = 0;
     while (true) {
-      const params = { include_groups: 'album,single', market: 'JP', limit: '20' };
-      if (offset > 0) params.offset = String(offset);
-      const d = await spotifyGet(`/artists/${selectedArtist.id}/albums`, params);
+      const albumUrl = `https://api.spotify.com/v1/artists/${selectedArtist.id}/albums?include_groups=album,single&market=JP&limit=20&offset=${offset}`;
+      const d = await fetch(albumUrl, {headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+      if (d.error) throw new Error(d.error.message);
       allAlbums = allAlbums.concat(d.items);
-      if (d.next) offset += 50; else break;
+      if (d.next) offset += 20; else break;
     }
     const seen = new Set();
     allAlbums = allAlbums.filter(a => {
