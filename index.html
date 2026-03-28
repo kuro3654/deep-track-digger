@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Track Digger</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #141414; --surface2: #1e1e1e;
+    --border: rgba(255,255,255,0.08); --accent: #1DB954;
+    --accent2: #ff6b35; --text: #f0ede8; --muted: #888; --danger: #e54b4b;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  #app { max-width: 680px; margin: 0 auto; }
+
+  .header { padding: 28px 24px 20px; display: flex; align-items: flex-end; gap: 14px; border-bottom: 1px solid var(--border); }
+  .logo-mark { width: 44px; height: 44px; background: var(--accent); border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .header-text h1 { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+  .header-text p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .header-badge { margin-left: auto; font-size: 10px; font-family: 'Space Mono', monospace; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 8px; letter-spacing: 1px; }
+
+  #auth-screen { padding: 40px 24px; text-align: center; }
+  .vinyl { width: 120px; height: 120px; margin: 0 auto 28px; position: relative; }
+  .vinyl-disc { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #2a2a2a 0%, #111 25%, #1a1a1a 26%, #111 40%, #1a1a1a 41%, #111 55%, #222 85%, #333 100%); animation: spin 4s linear infinite; box-shadow: 0 0 30px rgba(29,185,84,0.12); }
+  .vinyl-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .vinyl-hole { width: 6px; height: 6px; border-radius: 50%; background: var(--bg); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .auth-hero h2 { font-family: 'Space Mono', monospace; font-size: 24px; font-weight: 700; line-height: 1.35; margin-bottom: 14px; color: var(--text); }
+  .auth-hero h2 span { color: var(--accent); }
+  .auth-hero p { font-size: 13px; color: var(--muted); line-height: 1.7; max-width: 400px; margin: 0 auto 28px; }
+
+  .btn-spotify { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #000; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 50px; border: none; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+  .btn-spotify:hover { transform: scale(1.03); opacity: 0.9; }
+
+  .redirect-note { margin-top: 20px; padding: 12px 16px; background: rgba(29,185,84,0.07); border: 1px solid rgba(29,185,84,0.2); border-radius: 8px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .redirect-note code { color: var(--accent); font-family: 'Space Mono', monospace; }
+
+  .user-bar { display: none; padding: 10px 24px; background: var(--surface); border-bottom: 1px solid var(--border); align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .user-bar.visible { display: flex; }
+  .user-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  #main-app { display: none; }
+  .section { padding: 20px 24px; }
+  .section-label { font-size: 10px; font-family: 'Space Mono', monospace; color: var(--muted); letter-spacing: 1.5px; margin-bottom: 10px; }
+  .divider { height: 1px; background: var(--border); }
+
+  .search-wrap { display: flex; gap: 8px; }
+  .search-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 15px; color: var(--text); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s; }
+  .search-input:focus { border-color: rgba(29,185,84,0.5); }
+  .search-input::placeholder { color: #444; }
+  .btn-search { background: var(--accent); border: none; color: #000; width: 44px; height: 44px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s, opacity 0.15s; }
+  .btn-search:hover { opacity: 0.85; transform: scale(1.05); }
+
+  #artist-results { display: none; padding: 0 24px 14px; }
+  .artist-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .artist-chip { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; padding: 6px 12px 6px 6px; cursor: pointer; transition: border-color 0.2s; }
+  .artist-chip:hover { border-color: var(--accent); }
+  .artist-chip.selected { border-color: var(--accent); background: rgba(29,185,84,0.1); }
+  .chip-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--surface2); object-fit: cover; flex-shrink: 0; }
+  .chip-name { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  .filters-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 24px; }
+  .filter-chip { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; transition: border-color 0.2s, color 0.2s; user-select: none; }
+  .filter-chip.active { border-color: var(--accent2); color: var(--accent2); }
+
+  .btn-dig { display: flex; align-items: center; justify-content: center; gap: 8px; width: calc(100% - 48px); margin: 0 24px 24px; background: var(--accent2); color: #fff; border: none; border-radius: 12px; padding: 14px; font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+  .btn-dig:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-dig:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  #error-msg { display: none; margin: 0 24px 14px; padding: 12px 16px; background: rgba(229,75,75,0.1); border: 1px solid rgba(229,75,75,0.3); border-radius: 8px; font-size: 13px; color: var(--danger); }
+
+  #loading { display: none; padding: 36px 24px; text-align: center; }
+  .loading-records { display: flex; gap: 6px; justify-content: center; margin-bottom: 14px; }
+  .rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: bounce 0.8s ease-in-out infinite; }
+  .rec-dot:nth-child(2){animation-delay:0.15s} .rec-dot:nth-child(3){animation-delay:0.3s} .rec-dot:nth-child(4){animation-delay:0.45s}
+  @keyframes bounce { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(2.2)} }
+  #loading strong { font-family: 'Space Mono', monospace; font-size: 13px; color: var(--accent); display: block; margin-bottom: 4px; }
+  #loading p { font-size: 12px; color: var(--muted); }
+
+  #results { display: none; padding: 0 24px 32px; }
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .result-meta { font-size: 10px; font-family: 'Space Mono', monospace; color: var(--muted); }
+  .result-meta span { color: var(--accent); }
+
+  .track-list { display: flex; flex-direction: column; gap: 8px; }
+  .track-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; transition: border-color 0.2s, background 0.2s; animation: fadeUp 0.4s ease forwards; opacity: 0; transform: translateY(8px); cursor: pointer; }
+  .track-card:hover { border-color: rgba(255,255,255,0.15); background: var(--surface2); }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+  .track-card:nth-child(1){animation-delay:0.05s} .track-card:nth-child(2){animation-delay:0.12s} .track-card:nth-child(3){animation-delay:0.19s} .track-card:nth-child(4){animation-delay:0.26s} .track-card:nth-child(5){animation-delay:0.33s}
+
+  .track-rank { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); width: 16px; text-align: center; flex-shrink: 0; }
+  .track-art { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+  .track-art-ph { width: 48px; height: 48px; border-radius: 6px; background: var(--surface2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .track-info { flex: 1; min-width: 0; }
+  .track-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .track-album { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-year { font-size: 10px; color: #555; margin-top: 2px; font-family: 'Space Mono', monospace; }
+  .track-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+  .pop-row { display: flex; align-items: center; gap: 5px; }
+  .pop-label { font-size: 10px; font-family: 'Space Mono', monospace; color: var(--muted); }
+  .pop-track { width: 44px; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .pop-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+  .btn-play { background: none; border: 1px solid var(--border); color: var(--muted); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color 0.2s, color 0.2s; }
+  .btn-play:hover { border-color: var(--accent); color: var(--accent); }
+
+  .result-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-action { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 11px; border-radius: 10px; font-size: 12px; font-weight: 500; cursor: pointer; transition: border-color 0.2s, color 0.2s; font-family: 'DM Sans', sans-serif; }
+  .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-action.primary { background: rgba(29,185,84,0.1); border-color: rgba(29,185,84,0.3); color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="logo-mark">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="9" stroke="#000" stroke-width="1.5"/>
+        <circle cx="12" cy="12" r="3" fill="#000"/>
+        <path d="M12 3C12 3 17 7.5 17 12" stroke="#000" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <h1>DEEP TRACK DIGGER</h1>
+      <p>Unearth the hidden gems</p>
+    </div>
+    <div class="header-badge">v1.0</div>
+  </div>
+
+  <div class="user-bar" id="user-bar">
+    <div class="user-dot"></div>
+    <span id="user-name">接続中...</span>
+    <span style="margin-left:auto;cursor:pointer;font-size:11px;" onclick="logout()">ログアウト</span>
+  </div>
+
+  <div id="auth-screen">
+    <div style="margin-bottom:28px;">
+      <div class="vinyl">
+        <div class="vinyl-disc"></div>
+        <div class="vinyl-center"><div class="vinyl-hole"></div></div>
+      </div>
+      <div class="auth-hero">
+        <h2>名盤の<span>B面</span>を<br>掘り起こせ。</h2>
+        <p>Popularityスコアが低い順に5曲を抽出。<br>あなただけの隠れた名曲との出会いを。</p>
+      </div>
+    </div>
+    <button class="btn-spotify" onclick="startPKCELogin()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+      </svg>
+      Spotifyでログイン
+    </button>
+    <div class="redirect-note">
+      Spotify Developer Dashboard の Redirect URIs に<br>
+      <code>https://kuro3654.github.io/deep-track-digger/</code><br>
+      を登録してください
+    </div>
+  </div>
+
+  <div id="main-app">
+    <div class="section">
+      <div class="section-label">// アーティストを検索</div>
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="artist-search" placeholder="アーティスト名を入力..." onkeydown="if(event.key==='Enter')searchArtist()"/>
+        <button class="btn-search" onclick="searchArtist()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div id="artist-results">
+      <div class="artist-chips" id="artist-chips"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="filters-row">
+      <div class="section-label" style="width:100%;padding-bottom:2px;">// ノイズフィルター</div>
+      <div class="filter-chip active" data-filter="live" onclick="toggleFilter(this)">− LIVE</div>
+      <div class="filter-chip active" data-filter="remix" onclick="toggleFilter(this)">− REMIX</div>
+      <div class="filter-chip active" data-filter="intro" onclick="toggleFilter(this)">− INTRO</div>
+      <div class="filter-chip active" data-filter="short" onclick="toggleFilter(this)">− 短曲(&lt;90秒)</div>
+    </div>
+
+    <div id="error-msg"></div>
+
+    <button class="btn-dig" id="dig-btn" onclick="digTracks()" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      深堀り開始
+    </button>
+
+    <div id="loading">
+      <div class="loading-records">
+        <div class="rec-dot"></div><div class="rec-dot"></div>
+        <div class="rec-dot"></div><div class="rec-dot"></div>
+      </div>
+      <strong id="loading-status">全曲を取得中...</strong>
+      <p>ディスコグラフィーを掘り起こしています</p>
+    </div>
+
+    <div id="results">
+      <div class="result-header">
+        <div class="result-meta">HIDDEN GEMS — <span id="artist-name-display"></span></div>
+        <div class="result-meta" id="total-scanned"></div>
+      </div>
+      <div class="track-list" id="track-list"></div>
+      <div class="result-actions">
+        <button class="btn-action primary" onclick="savePlaylist()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          プレイリスト保存
+        </button>
+        <button class="btn-action" onclick="shareResult()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          シェア
+        </button>
+        <button class="btn-action" onclick="digAgain()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          再探索
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLIENT_ID = 'fb59dba67f184d4f95f076e1a5fe71d9';
+const REDIRECT_URI = 'https://kuro3654.github.io/deep-track-digger/';
+const SCOPES = 'user-read-private user-read-email playlist-modify-public playlist-modify-private';
+
+let accessToken = null;
+let selectedArtist = null;
+let activeFilters = new Set(['live','remix','intro','short']);
+let foundTracks = [];
+
+function generateRandom(len) {
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function sha256(plain) {
+  const enc = new TextEncoder().encode(plain);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  return btoa(String.fromCharCode(...new Uint8Array(hash))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function startPKCELogin() {
+  const verifier = generateRandom(64);
+  const challenge = await sha256(verifier);
+  sessionStorage.setItem('pkce_verifier', verifier);
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    code_challenge_method: 'S256',
+    code_challenge: challenge,
+    scope: SCOPES,
+    show_dialog: 'true'
+  });
+  window.location.href = 'https://accounts.spotify.com/authorize?' + params;
+}
+
+async function exchangeToken(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  if (!verifier) return;
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+      client_id: CLIENT_ID,
+      code_verifier: verifier
+    })
+  });
+  const data = await resp.json();
+  if (data.access_token) {
+    accessToken = data.access_token;
+    sessionStorage.removeItem('pkce_verifier');
+    window.history.replaceState({}, '', window.location.pathname);
+    showMainApp();
+    fetchUserProfile();
+  } else {
+    showError('認証エラー: ' + (data.error_description || data.error));
+  }
+}
+
+async function fetchUserProfile() {
+  try {
+    const r = await spotifyGet('/me');
+    if (r.display_name) {
+      document.getElementById('user-bar').classList.add('visible');
+      document.getElementById('user-name').textContent = r.display_name + ' としてログイン中';
+    }
+  } catch(e) {}
+}
+
+function logout() {
+  accessToken = null;
+  sessionStorage.clear();
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'block';
+  document.getElementById('user-bar').classList.remove('visible');
+}
+
+function showMainApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+}
+
+async function spotifyGet(path, params = {}) {
+  const url = new URL('https://api.spotify.com/v1' + path);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'API Error ' + r.status);
+  }
+  return r.json();
+}
+
+async function searchArtist() {
+  const q = document.getElementById('artist-search').value.trim();
+  if (!q) return;
+  showError(null);
+  try {
+    const data = await spotifyGet('/search', { q, type: 'artist', limit: 5 });
+    const artists = data.artists.items;
+    if (!artists.length) { showError('アーティストが見つかりませんでした'); return; }
+    const container = document.getElementById('artist-chips');
+    container.innerHTML = '';
+    artists.forEach(a => {
+      const chip = document.createElement('div');
+      chip.className = 'artist-chip';
+      const img = a.images[2] || a.images[1] || a.images[0];
+      chip.innerHTML = img
+        ? `<img src="${img.url}" class="chip-avatar"/><span class="chip-name">${a.name}</span>`
+        : `<div class="chip-avatar"></div><span class="chip-name">${a.name}</span>`;
+      chip.onclick = () => {
+        document.querySelectorAll('.artist-chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+        selectedArtist = a;
+        document.getElementById('dig-btn').disabled = false;
+      };
+      container.appendChild(chip);
+    });
+    document.getElementById('artist-results').style.display = 'block';
+  } catch(e) { showError('検索エラー: ' + e.message); }
+}
+
+function toggleFilter(el) {
+  const f = el.dataset.filter;
+  if (activeFilters.has(f)) { activeFilters.delete(f); el.classList.remove('active'); }
+  else { activeFilters.add(f); el.classList.add('active'); }
+}
+
+async function digTracks() {
+  if (!selectedArtist) return;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('dig-btn').style.display = 'none';
+  showError(null);
+
+  try {
+    setStatus('全アルバムを取得中...');
+    let allAlbums = [], offset = 0;
+    while (true) {
+      const d = await spotifyGet(`/artists/${selectedArtist.id}/albums`, { include_groups: 'album,single', market: 'JP', limit: 50, offset });
+      allAlbums = allAlbums.concat(d.items);
+      if (d.next) offset += 50; else break;
+    }
+    const seen = new Set();
+    allAlbums = allAlbums.filter(a => {
+      const k = a.name.toLowerCase().replace(/\s*[\(\[].*/, '').trim();
+      if (seen.has(k)) return false; seen.add(k); return true;
+    });
+
+    setStatus(`${allAlbums.length}枚のアルバムを分析中...`);
+    let allTracks = [];
+    for (let i = 0; i < allAlbums.length; i += 20) {
+      const ids = allAlbums.slice(i, i+20).map(a => a.id).join(',');
+      const d = await spotifyGet('/albums', { ids, market: 'JP' });
+      d.albums.forEach(album => {
+        album.tracks.items.forEach(t => {
+          allTracks.push({ id: t.id, name: t.name, duration_ms: t.duration_ms, album_name: album.name, album_art: album.images[1]?.url || album.images[0]?.url, album_year: album.release_date?.substring(0,4), preview_url: t.preview_url, external_url: t.external_urls?.spotify });
+        });
+      });
+      setStatus(`楽曲を収集中... ${allTracks.length}曲`);
+    }
+
+    let filtered = allTracks.filter(t => {
+      const n = t.name.toLowerCase();
+      if (activeFilters.has('live') && /\blive\b|ライブ/.test(n)) return false;
+      if (activeFilters.has('remix') && /remix|リミックス/.test(n)) return false;
+      if (activeFilters.has('intro') && /\bintro\b|\binterlude\b|\boutro\b/.test(n)) return false;
+      if (activeFilters.has('short') && t.duration_ms < 90000) return false;
+      return true;
+    });
+    const seenT = new Set();
+    filtered = filtered.filter(t => {
+      const k = t.name.toLowerCase().replace(/\s*[\(\-].*/, '').trim();
+      if (seenT.has(k)) return false; seenT.add(k); return true;
+    });
+
+    setStatus('Popularityを取得中...');
+    const pops = {};
+    for (let i = 0; i < filtered.length; i += 50) {
+      const ids = filtered.slice(i, i+50).map(t => t.id).join(',');
+      const d = await spotifyGet('/tracks', { ids, market: 'JP' });
+      d.tracks.forEach(t => { if (t) pops[t.id] = t.popularity; });
+    }
+    filtered.forEach(t => { t.popularity = pops[t.id] ?? 0; });
+    filtered.sort((a,b) => a.popularity - b.popularity);
+    foundTracks = filtered.slice(0, 5);
+    renderResults(foundTracks, filtered.length);
+  } catch(e) {
+    showError('エラー: ' + e.message);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dig-btn').style.display = 'flex';
+  }
+}
+
+function setStatus(msg) { document.getElementById('loading-status').textContent = msg; }
+
+function renderResults(tracks, total) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('artist-name-display').textContent = selectedArtist.name;
+  document.getElementById('total-scanned').textContent = total + '曲から抽出';
+  const list = document.getElementById('track-list');
+  list.innerHTML = '';
+  tracks.forEach((t, i) => {
+    const card = document.createElement('div');
+    card.className = 'track-card';
+    const art = t.album_art
+      ? `<img src="${t.album_art}" class="track-art"/>`
+      : `<div class="track-art-ph"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>`;
+    const prev = t.preview_url
+      ? `<button class="btn-play" onclick="event.stopPropagation();playPreview('${t.preview_url}',this)"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`
+      : '';
+    card.innerHTML = `<span class="track-rank">${i+1}</span>${art}<div class="track-info"><div class="track-name">${t.name}</div><div class="track-album">${t.album_name}</div><div class="track-year">${t.album_year||''}</div></div><div class="track-right"><div class="pop-row"><span class="pop-label">${t.popularity}</span><div class="pop-track"><div class="pop-fill" style="width:${t.popularity}%"></div></div></div>${prev}</div>`;
+    if (t.external_url) card.onclick = () => window.open(t.external_url, '_blank');
+    list.appendChild(card);
+  });
+}
+
+let curAudio = null, curBtn = null;
+function playPreview(url, btn) {
+  if (curAudio) {
+    curAudio.pause();
+    if (curBtn) curBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+    if (curBtn === btn) { curAudio = null; curBtn = null; return; }
+  }
+  curAudio = new Audio(url); curAudio.volume = 0.7; curAudio.play();
+  curBtn = btn;
+  btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+  curAudio.onended = () => { btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>'; curAudio = null; curBtn = null; };
+}
+
+async function savePlaylist() {
+  if (!foundTracks.length) return;
+  try {
+    const me = await spotifyGet('/me');
+    const pl = await fetch(`https://api.spotify.com/v1/users/${me.id}/playlists`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Deep Cuts: ${selectedArtist.name}`, description: 'Deep Track Diggerで発掘した隠れた名曲', public: false })
+    }).then(r => r.json());
+    await fetch(`https://api.spotify.com/v1/playlists/${pl.id}/tracks`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uris: foundTracks.map(t => 'spotify:track:' + t.id) })
+    });
+    alert(`✓ 「Deep Cuts: ${selectedArtist.name}」をSpotifyに保存しました！`);
+  } catch(e) { alert('保存エラー: ' + e.message); }
+}
+
+function shareResult() {
+  const text = `🎵 ${selectedArtist.name} の隠れた名曲を発掘！\n\n`
+    + foundTracks.map((t,i) => `${i+1}. ${t.name} (Popularity: ${t.popularity})`).join('\n')
+    + '\n\n#DeepTrackDigger';
+  navigator.clipboard?.writeText(text).then(() => alert('クリップボードにコピーしました！'));
+}
+
+function digAgain() {
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('dig-btn').style.display = 'flex';
+  document.getElementById('dig-btn').disabled = true;
+  document.querySelectorAll('.artist-chip').forEach(c => c.classList.remove('selected'));
+  selectedArtist = null;
+  document.getElementById('artist-search').value = '';
+  document.getElementById('artist-results').style.display = 'none';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  if (msg) { el.textContent = msg; el.style.display = 'block'; }
+  else el.style.display = 'none';
+}
+
+// INIT
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const error = params.get('error');
+  if (error) { showError('認証エラー: ' + error); return; }
+  if (code && sessionStorage.getItem('pkce_verifier')) {
+    exchangeToken(code);
+  }
+})();
+</script>
+</body>
+</html>
